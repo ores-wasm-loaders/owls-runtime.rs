@@ -1,0 +1,12 @@
+version = 1
+
+[[package]]
+org = "ores-wasm-loaders"
+name = "owls-interfaces"
+version = "0.1.0"
+sha256 = "3ed5a04a63ae30e03b5554bf90dfc273742020a56a37bb82b06c24f9625ca26d"
+size = 4125
+format = "tar.gz"
+vcs_tag = "v0.1.0"
+vcs_commit = "6a43cdc6ea463950a50ad0812fd9697ebae05d11"
+source = "file:///tmp/ores-wasm-registry"

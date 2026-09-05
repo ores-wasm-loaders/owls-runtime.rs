@@ -1,0 +1,18 @@
+[package]
+org = "ores-wasm-loaders"
+name = "owls-runtime"
+version = "0.1.0"
+description = "Bounded verified WASM assets and native execution for Rust hosts"
+license = "MIT"
+[package.repository]
+vcs = "git"
+url = "https://github.com/ores-wasm-loaders/owls-runtime.rs"
+[dependencies]
+"ores-wasm-loaders/owls-interfaces" = "=0.1.0"
+[targets.repository]
+dir = "."
+[install]
+adapter = "none"
+[publish]
+exclude = [".ores/**", ".zed/**", ".zed-pack/**", "zed_modules/**", "target/**"]
+

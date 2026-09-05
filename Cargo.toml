@@ -1,0 +1,20 @@
+[package]
+name = "owls-runtime"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Verified public WASM assets and bounded native execution"
+[dependencies]
+owls-interfaces = "=0.1.0"
+serde_json = "1.0.140"
+jsonschema = { version = "0.49.2", default-features = false }
+sha2 = "0.10.9"
+url = "2.5.4"
+thiserror = "2.0.12"
+reqwest = { version = "0.12.28", default-features = false, features = ["blocking", "rustls-tls", "gzip", "brotli"] }
+wasmi = "0.46.0"
+tempfile = "3.20.0"
+[patch.crates-io]
+owls-interfaces = { path = "zed_modules/ores-wasm-loaders/owls-interfaces/rust" }
+[dev-dependencies]
+wat = "1.240.0"
