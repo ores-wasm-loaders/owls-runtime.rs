@@ -1,0 +1,6 @@
+schema = 2
+[tasks.deps]
+run = ["zed install --frozen --adapter none --install-mode copy", "cargo fetch --locked"]
+[tasks.check]
+run = ["zed validate --require-lock", "cargo test --locked", "cargo clippy --locked --all-targets -- -D warnings"]
+
