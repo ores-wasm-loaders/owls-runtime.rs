@@ -103,6 +103,11 @@ fn invalid_schema_origin_and_duplicates_fail() {
     let a = r["assets"][0].clone();
     r["assets"].as_array_mut().unwrap().push(a);
     assert!(parse_release(r, &policy()).is_err());
+    let mut noncanonical = policy();
+    noncanonical.origins = vec!["https://ASSETS.example".into()];
+    assert!(parse_release(manifest(bytes), &noncanonical).is_err());
+    noncanonical.origins = vec!["https://assets.example/".into()];
+    assert!(parse_release(manifest(bytes), &noncanonical).is_err());
 }
 #[test]
 fn budget_and_cancellation_prevent_network() {

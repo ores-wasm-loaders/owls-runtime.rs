@@ -2,7 +2,7 @@
 
 A shared loader for public WASM assets in Rust servers and native desktop applications. Uses zed-pkg for the shared contract dependency, locked Cargo dependencies for ecosystem libraries, and Wasmi for explicit raw-WASM execution.
 
-Host<T,S> combines a strict release manifest, immutable policy, a Transport and a ByteStore. prefetch checks budgets and verifies bytes without compiling or instantiating. bytes reuses verified cache entries and refetches corrupt entries. HttpTransport disables redirects, uses HTTPS, bounds decoded reads and applies a total request timeout. Preparation is sequential and therefore bounded to one request per host.
+Host<T,S> combines a strict release manifest, immutable policy, a Transport and a ByteStore. `prefetch` checks budgets and verifies bytes without compiling or instantiating; it is optional preparation, not a prerequisite for activation. `bytes` reuses verified cache entries and refetches corrupt entries. `HttpTransport` disables redirects, uses HTTPS, requires a content type compatible with the manifest kind, bounds decoded reads and applies a total request timeout. Preparation is sequential and therefore bounded to one request per host.
 
 NativeRuntime accepts raw-wasm releases and enforces instruction fuel, memory and instance limits. Configure a Linker only for the capabilities your product intends to expose. No ambient WASI or process/network/filesystem imports exist. Browser wasm-bindgen glue and Flutter WasmGC require a browser host; the loader rejects those release types.
 

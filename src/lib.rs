@@ -30,6 +30,8 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("request failed")]
     Http(#[from] reqwest::Error),
+    #[error("unexpected asset content type")]
+    ContentType,
     #[error("WASM execution: {0}")]
     Wasm(String),
 }
