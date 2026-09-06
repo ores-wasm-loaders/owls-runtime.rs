@@ -43,6 +43,13 @@ fn is_lower_hex(value: &str, length: usize) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+fn value<'a>(assignments: &'a BTreeMap<String, String>, key: &str) -> &'a str {
+    assignments
+        .get(key)
+        .map(String::as_str)
+        .unwrap_or_else(|| panic!("missing {key}"))
+}
+
 #[test]
 fn cargo_and_zed_package_identity_are_equal() {
     let cargo = read("Cargo.toml");
@@ -50,10 +57,13 @@ fn cargo_and_zed_package_identity_are_equal() {
     let cargo_package = assignments(&section(&cargo, "[package]"));
     let zed_package = assignments(&section(&zed, "[package]"));
 
-    assert_eq!(cargo_package.get("name"), Some(&"owls-runtime".to_owned()));
-    assert_eq!(zed_package.get("org"), Some(&"ores-wasm-loaders".to_owned()));
-    assert_eq!(zed_package.get("name"), cargo_package.get("name"));
-    assert_eq!(zed_package.get("version"), cargo_package.get("version"));
+    assert_eq!(value(&cargo_package, "name"), "owls-runtime");
+    assert_eq!(value(&zed_package, "org"), "ores-wasm-loaders");
+    assert_eq!(value(&zed_package, "name"), value(&cargo_package, "name"));
+    assert_eq!(
+        value(&zed_package, "version"),
+        value(&cargo_package, "version")
+    );
 }
 
 #[test]
@@ -66,42 +76,30 @@ fn cargo_zed_and_lock_use_one_exact_interface_release() {
     let zed_dependencies = assignments(&section(&zed, "[dependencies]"));
     let locked_package = assignments(&section(&lock, "[[package]]"));
 
-    let cargo_requirement = cargo_dependencies
-        .get("owls-interfaces")
-        .expect("Cargo dependency must exist");
-    let zed_requirement = zed_dependencies
-        .get("ores-wasm-loaders/owls-interfaces")
-        .expect("Zed dependency must exist");
-    let locked_version = locked_package
-        .get("version")
-        .expect("lock version must exist");
+    let cargo_requirement = value(&cargo_dependencies, "owls-interfaces");
+    let zed_requirement = value(
+        &zed_dependencies,
+        "ores-wasm-loaders/owls-interfaces",
+    );
+    let locked_version = value(&locked_package, "version");
 
     assert!(cargo_requirement.starts_with('='), "Cargo dependency must be exact");
     assert_eq!(cargo_requirement, zed_requirement);
-    assert_eq!(cargo_requirement, &format!("={locked_version}"));
-    assert_eq!(locked_package.get("org"), Some(&"ores-wasm-loaders".to_owned()));
-    assert_eq!(locked_package.get("name"), Some(&"owls-interfaces".to_owned()));
-    assert_eq!(
-        locked_package.get("vcs_tag"),
-        Some(&format!("v{locked_version}"))
-    );
-    assert_eq!(locked_package.get("format"), Some(&"tar.gz".to_owned()));
+    assert_eq!(cargo_requirement, format!("={locked_version}"));
+    assert_eq!(value(&locked_package, "org"), "ores-wasm-loaders");
+    assert_eq!(value(&locked_package, "name"), "owls-interfaces");
+    assert_eq!(value(&locked_package, "vcs_tag"), format!("v{locked_version}"));
+    assert_eq!(value(&locked_package, "format"), "tar.gz");
 
-    let commit = locked_package
-        .get("vcs_commit")
-        .expect("lock commit must exist");
-    let archive_sha = locked_package
-        .get("sha256")
-        .expect("lock archive digest must exist");
+    let commit = value(&locked_package, "vcs_commit");
+    let archive_sha = value(&locked_package, "sha256");
     assert!(is_lower_hex(commit, 40), "lock commit must be a full SHA-1");
     assert!(
         is_lower_hex(archive_sha, 64),
         "lock archive digest must be lowercase SHA-256"
     );
     assert!(
-        locked_package
-            .get("size")
-            .expect("lock archive size must exist")
+        value(&locked_package, "size")
             .parse::<u64>()
             .is_ok_and(|size| size > 0),
         "lock archive size must be a positive integer"
