@@ -77,18 +77,21 @@ fn cargo_zed_and_lock_use_one_exact_interface_release() {
     let locked_package = assignments(&section(&lock, "[[package]]"));
 
     let cargo_requirement = value(&cargo_dependencies, "owls-interfaces");
-    let zed_requirement = value(
-        &zed_dependencies,
-        "ores-wasm-loaders/owls-interfaces",
-    );
+    let zed_requirement = value(&zed_dependencies, "ores-wasm-loaders/owls-interfaces");
     let locked_version = value(&locked_package, "version");
 
-    assert!(cargo_requirement.starts_with('='), "Cargo dependency must be exact");
+    assert!(
+        cargo_requirement.starts_with('='),
+        "Cargo dependency must be exact"
+    );
     assert_eq!(cargo_requirement, zed_requirement);
     assert_eq!(cargo_requirement, format!("={locked_version}"));
     assert_eq!(value(&locked_package, "org"), "ores-wasm-loaders");
     assert_eq!(value(&locked_package, "name"), "owls-interfaces");
-    assert_eq!(value(&locked_package, "vcs_tag"), format!("v{locked_version}"));
+    assert_eq!(
+        value(&locked_package, "vcs_tag"),
+        format!("v{locked_version}")
+    );
     assert_eq!(value(&locked_package, "format"), "tar.gz");
 
     let commit = value(&locked_package, "vcs_commit");
