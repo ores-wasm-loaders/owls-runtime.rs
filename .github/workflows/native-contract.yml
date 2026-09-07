@@ -27,21 +27,24 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ores-wasm-loaders/owls-interfaces
-          ref: d036d73c35ced08f028c402407c667c339df79e6
+          ref: f8fc1873c1b402c04f67dbf62f89b3691ba300fe
           path: zed_modules/ores-wasm-loaders/owls-interfaces
           persist-credentials: false
+
+      - name: Install exact Rust toolchain
+        run: rustup toolchain install 1.94.0 --profile minimal --component rustfmt,clippy
 
       - name: Record toolchain
         run: |
           set -euo pipefail
-          rustc --version --verbose
-          cargo --version
+          rustc +1.94.0 --version --verbose
+          cargo +1.94.0 --version
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: cargo +1.94.0 fmt --all -- --check
 
       - name: Reject warnings and unsafe target drift
-        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+        run: cargo +1.94.0 clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Run native contract and package-receipt tests
-        run: cargo test --locked --all-features
+        run: cargo +1.94.0 test --locked --all-features

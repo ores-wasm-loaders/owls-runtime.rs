@@ -19,6 +19,14 @@ pub fn parse_release(mut value: serde_json::Value, policy: &Policy) -> Result<Re
     if policy.max_asset_bytes == 0 || policy.max_prepare_bytes == 0 {
         return Err(Error::Budget);
     }
+    if policy.origins.is_empty()
+        || policy
+            .origins
+            .iter()
+            .any(|origin| !canonical_origin(origin))
+    {
+        return Err(Error::Manifest("canonical HTTPS origins required".into()));
+    }
     let schema: serde_json::Value =
         serde_json::from_str(owls_interfaces::RELEASE_SCHEMA).expect("compiled schema");
     let validator =
@@ -64,4 +72,18 @@ pub fn parse_release(mut value: serde_json::Value, policy: &Policy) -> Result<Re
         return Err(Error::Manifest("invalid entrypoint".into()));
     }
     Ok(r)
+}
+
+fn canonical_origin(value: &str) -> bool {
+    let Ok(origin) = url::Url::parse(value) else {
+        return false;
+    };
+    origin.scheme() == "https"
+        && origin.host_str().is_some()
+        && origin.username().is_empty()
+        && origin.password().is_none()
+        && origin.path() == "/"
+        && origin.query().is_none()
+        && origin.fragment().is_none()
+        && origin.origin().ascii_serialization() == value
 }
