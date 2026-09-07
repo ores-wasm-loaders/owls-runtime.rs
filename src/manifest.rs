@@ -29,7 +29,8 @@ pub fn parse_release(mut value: serde_json::Value, policy: &Policy) -> Result<Re
     // JSON Schema treats 8.0 as an integer. Normalize only after schema validation.
     value["schemaVersion"] = serde_json::json!(1);
     for asset in value["assets"].as_array_mut().expect("validated array") {
-        asset["bytes"] = serde_json::json!(asset["bytes"].as_f64().expect("validated number") as u64);
+        asset["bytes"] =
+            serde_json::json!(asset["bytes"].as_f64().expect("validated number") as u64);
     }
     let r: Release = serde_json::from_value(value).map_err(|e| Error::Manifest(e.to_string()))?;
     let mut ids = BTreeSet::new();
