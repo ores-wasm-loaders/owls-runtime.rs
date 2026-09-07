@@ -103,6 +103,17 @@ fn invalid_schema_origin_and_duplicates_fail() {
     let a = r["assets"][0].clone();
     r["assets"].as_array_mut().unwrap().push(a);
     assert!(parse_release(r, &policy()).is_err());
+
+    for origins in [
+        vec![],
+        vec!["http://assets.example".into()],
+        vec!["https://ASSETS.example".into()],
+        vec!["https://assets.example/".into()],
+        vec!["https://assets.example/path".into()],
+        vec!["https://user@assets.example".into()],
+    ] {
+        assert!(parse_release(manifest(bytes), &Policy::new(origins)).is_err());
+    }
 }
 #[test]
 fn budget_and_cancellation_prevent_network() {
