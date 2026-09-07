@@ -19,7 +19,12 @@ pub fn parse_release(mut value: serde_json::Value, policy: &Policy) -> Result<Re
     if policy.max_asset_bytes == 0 || policy.max_prepare_bytes == 0 {
         return Err(Error::Budget);
     }
-    if policy.origins.is_empty() || policy.origins.iter().any(|origin| !canonical_origin(origin)) {
+    if policy.origins.is_empty()
+        || policy
+            .origins
+            .iter()
+            .any(|origin| !canonical_origin(origin))
+    {
         return Err(Error::Manifest("canonical HTTPS origins required".into()));
     }
     let schema: serde_json::Value =
