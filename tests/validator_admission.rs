@@ -60,8 +60,7 @@ fn native_loader_admits_the_same_exact_contract_in_both_jobs() {
 
     assert_ne!(interfaces, validator);
     assert_eq!(
-        validator,
-        "03ccc0ecdfc70f9198c3ccf80718910961d3fde1",
+        validator, "03ccc0ecdfc70f9198c3ccf80718910961d3fde1",
         "native admission must use the reviewed current TJSV revision",
     );
     assert!(source.contains("repository: ORESoftware/typespec-json-schema-validator"));
