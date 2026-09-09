@@ -14,14 +14,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OWLS_INTERFACES_REF: 1c3b29f1c43f9f38f637106e3ff601620df4a572
-  TSJSV_REF: 6bb5b7c1ee41c8b43741e50a264c33a1165549c4
+  OWLS_INTERFACES_REF: 76364a23364993ff4be1ed82a4978725ed6f811c
+  TSJSV_REF: 03ccc0ecdfc70f9198c3ccf80718910961d3fde1
 
 jobs:
   contract-admission:
     name: TypeSpec and JSON Schema Contract IR admission
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out native loader
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -58,6 +58,15 @@ jobs:
           done
           test "$(git -C subject/owls-interfaces rev-parse HEAD)" = "$OWLS_INTERFACES_REF"
           test "$(git -C subject/owls-interfaces/.tools/typespec-json-schema-validator rev-parse HEAD)" = "$TSJSV_REF"
+      - name: Stage admitted release fixtures as independent TJSV corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          corpus=subject/owls-interfaces/.typespec-json-schema-validator/instances/Release/valid
+          mkdir -p "$corpus"
+          cp subject/owls-interfaces/fixtures/valid/*.json "$corpus"/
+          count="$(find "$corpus" -maxdepth 1 -type f -name '*.json' | wc -l)"
+          test "$count" -ge 4
       - name: Generate Schema B, compare peer authorities, and emit Contract IR
         working-directory: subject/owls-interfaces
         shell: bash
@@ -66,12 +75,48 @@ jobs:
           node .tools/typespec-json-schema-validator/bin/typespec-json-schema-validator.mjs check \
             --typespec=contracts/main.tsp \
             --schema=schemas/release.schema.json \
+            --instances=.typespec-json-schema-validator/instances \
             --report=.typespec-json-schema-validator/report.json \
             --contract-ir=.typespec-json-schema-validator/contract-ir.json \
             --output-dir=.typespec-json-schema-validator/generated \
             --max-probes=96 \
             --quiet
-      - name: Verify receipt, source digests, Contract IR, and five-language projections
+      - name: Canonically verify current peer authorities and complete native consumer scope
+        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@03ccc0ecdfc70f9198c3ccf80718910961d3fde1
+        with:
+          contract_ir: subject/owls-interfaces/.typespec-json-schema-validator/contract-ir.json
+          report: subject/owls-interfaces/.typespec-json-schema-validator/report.json
+          typespec: subject/owls-interfaces/contracts/main.tsp
+          schema: subject/owls-interfaces/schemas/release.schema.json
+          generated_schema: subject/owls-interfaces/.typespec-json-schema-validator/generated/typespec.generated.schema.json
+          expected_declarations: >-
+            [
+              "Ores.WasmLoaders.Activation",
+              "Ores.WasmLoaders.ActivationMode",
+              "Ores.WasmLoaders.ApplicationId",
+              "Ores.WasmLoaders.Asset",
+              "Ores.WasmLoaders.AssetId",
+              "Ores.WasmLoaders.AssetKind",
+              "Ores.WasmLoaders.AssetRole",
+              "Ores.WasmLoaders.AssetStage",
+              "Ores.WasmLoaders.EntrypointId",
+              "Ores.WasmLoaders.FrameworkKind",
+              "Ores.WasmLoaders.HostSelector",
+              "Ores.WasmLoaders.HttpsAssetUrl",
+              "Ores.WasmLoaders.IslandName",
+              "Ores.WasmLoaders.PrepareBudget",
+              "Ores.WasmLoaders.PrepareStage",
+              "Ores.WasmLoaders.RecordString",
+              "Ores.WasmLoaders.RecordUnknown",
+              "Ores.WasmLoaders.Release",
+              "Ores.WasmLoaders.ReleaseId",
+              "Ores.WasmLoaders.RuntimeKind",
+              "Ores.WasmLoaders.SchemaVersion",
+              "Ores.WasmLoaders.Sha256Hex",
+              "Ores.WasmLoaders.ToolchainId"
+            ]
+          verification: subject/owls-interfaces/.typespec-json-schema-validator/tjsv-consumer-verification.json
+      - name: Independently verify receipt, source digests, Contract IR, and five-language projections
         working-directory: subject/owls-interfaces
         shell: bash
         run: |
@@ -92,6 +137,7 @@ jobs:
           sha256sum \
             "$evidence/report.json" \
             "$evidence/contract-ir.json" \
+            "$evidence/tjsv-consumer-verification.json" \
             "$evidence/projection-receipt.json" \
             > "$evidence/native-loader-sha256.txt"
       - name: Preserve exact contract-admission evidence
