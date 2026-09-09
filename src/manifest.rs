@@ -55,8 +55,7 @@ pub fn parse_release(mut value: serde_json::Value, policy: &Policy) -> Result<Re
     let mut ids = BTreeSet::new();
     let mut urls = BTreeSet::new();
     for asset in &release.assets {
-        let url =
-            url::Url::parse(&asset.url).map_err(|_| Error::Manifest("invalid URL".into()))?;
+        let url = url::Url::parse(&asset.url).map_err(|_| Error::Manifest("invalid URL".into()))?;
         if url.scheme() != "https"
             || !url.username().is_empty()
             || url.password().is_some()
@@ -131,13 +130,7 @@ pub fn dependency_closure<'a>(release: &'a Release, asset_id: &str) -> Result<Ve
     let mut visiting = BTreeSet::new();
     let mut visited = BTreeSet::new();
     let mut ordered = Vec::new();
-    visit_dependency(
-        asset_id,
-        &assets,
-        &mut visiting,
-        &mut visited,
-        &mut ordered,
-    )?;
+    visit_dependency(asset_id, &assets, &mut visiting, &mut visited, &mut ordered)?;
     Ok(ordered)
 }
 
