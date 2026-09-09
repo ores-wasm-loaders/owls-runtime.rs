@@ -8,9 +8,7 @@ mod transport;
 pub use build_manifest::inspect_build;
 pub use host::Host;
 pub use manifest::{Policy, dependency_closure, parse_release};
-pub use owls_interfaces::v2::{
-    Asset, AssetKind, Release, RuntimeKind as Runtime, SchemaVersion,
-};
+pub use owls_interfaces::v2::{Asset, AssetKind, Release, RuntimeKind as Runtime, SchemaVersion};
 pub use runtime::{NativeRuntime, RunningModule};
 pub use storage::{ByteStore, FileStore, MemoryStore};
 pub use transport::{HttpTransport, Transport};
