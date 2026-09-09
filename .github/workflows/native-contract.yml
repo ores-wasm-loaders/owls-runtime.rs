@@ -13,7 +13,97 @@ concurrency:
   group: native-contract-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  OWLS_INTERFACES_REF: 1c3b29f1c43f9f38f637106e3ff601620df4a572
+  TSJSV_REF: 6bb5b7c1ee41c8b43741e50a264c33a1165549c4
+
 jobs:
+  contract-admission:
+    name: TypeSpec and JSON Schema Contract IR admission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out native loader
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check out exact interface authority pair
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ores-wasm-loaders/owls-interfaces
+          ref: ${{ env.OWLS_INTERFACES_REF }}
+          path: subject/owls-interfaces
+          persist-credentials: false
+      - name: Check out exact TypeSpec and JSON Schema validator
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ORESoftware/typespec-json-schema-validator
+          ref: ${{ env.TSJSV_REF }}
+          path: subject/owls-interfaces/.tools/typespec-json-schema-validator
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install the validator's lockfile-pinned toolchain
+        working-directory: subject/owls-interfaces/.tools/typespec-json-schema-validator
+        run: npm ci --omit=dev
+      - name: Verify immutable source closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          for ref in "$OWLS_INTERFACES_REF" "$TSJSV_REF"; do
+            test "${#ref}" -eq 40
+            case "$ref" in *[!0-9a-f]*) exit 1 ;; esac
+          done
+          test "$(git -C subject/owls-interfaces rev-parse HEAD)" = "$OWLS_INTERFACES_REF"
+          test "$(git -C subject/owls-interfaces/.tools/typespec-json-schema-validator rev-parse HEAD)" = "$TSJSV_REF"
+      - name: Generate Schema B, compare peer authorities, and emit Contract IR
+        working-directory: subject/owls-interfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .tools/typespec-json-schema-validator/bin/typespec-json-schema-validator.mjs check \
+            --typespec=contracts/main.tsp \
+            --schema=schemas/release.schema.json \
+            --report=.typespec-json-schema-validator/report.json \
+            --contract-ir=.typespec-json-schema-validator/contract-ir.json \
+            --output-dir=.typespec-json-schema-validator/generated \
+            --max-probes=96 \
+            --quiet
+      - name: Verify receipt, source digests, Contract IR, and five-language projections
+        working-directory: subject/owls-interfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/verify-contract-ir.mjs
+          node scripts/check-language-projections.mjs
+      - name: Seal native-loader admission evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence=subject/owls-interfaces/.typespec-json-schema-validator
+          {
+            printf 'native_loader=%s\n' "$(git rev-parse HEAD)"
+            printf 'interfaces=%s\n' "$OWLS_INTERFACES_REF"
+            printf 'validator=%s\n' "$TSJSV_REF"
+            printf 'node=%s\n' "$(node --version)"
+          } > "$evidence/native-loader-versions.txt"
+          sha256sum \
+            "$evidence/report.json" \
+            "$evidence/contract-ir.json" \
+            "$evidence/projection-receipt.json" \
+            > "$evidence/native-loader-sha256.txt"
+      - name: Preserve exact contract-admission evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-contract-admission-${{ github.sha }}
+          path: subject/owls-interfaces/.typespec-json-schema-validator/
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+
   rust:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -27,9 +117,15 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ores-wasm-loaders/owls-interfaces
-          ref: f8fc1873c1b402c04f67dbf62f89b3691ba300fe
+          ref: ${{ env.OWLS_INTERFACES_REF }}
           path: zed_modules/ores-wasm-loaders/owls-interfaces
           persist-credentials: false
+
+      - name: Verify exact interface checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C zed_modules/ores-wasm-loaders/owls-interfaces rev-parse HEAD)" = "$OWLS_INTERFACES_REF"
 
       - name: Install exact Rust toolchain
         run: rustup toolchain install 1.94.0 --profile minimal --component rustfmt,clippy
