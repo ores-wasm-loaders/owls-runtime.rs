@@ -58,6 +58,10 @@ fn native_loader_admits_the_same_exact_contract_in_both_jobs() {
     let interfaces = exact_ref(&source, "OWLS_INTERFACES_REF");
     let validator = exact_ref(&source, "TSJSV_REF");
 
+    assert_eq!(
+        interfaces, "cfe0b18fe9ae361d94ea0646627cb732465b5496",
+        "native admission must consume the dependency-DAG interface revision",
+    );
     assert_ne!(interfaces, validator);
     assert_eq!(
         validator, "03ccc0ecdfc70f9198c3ccf80718910961d3fde1",
