@@ -1,4 +1,6 @@
-use crate::{Asset, AssetKind, Error, Policy, Release, Result, Runtime, parse_release};
+use crate::{
+    Asset, AssetKind, Error, Policy, Release, Result, Runtime, SchemaVersion, parse_release,
+};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
@@ -72,6 +74,9 @@ pub fn inspect_build(
             id,
             url: url.into(),
             kind,
+            role: None,
+            stage: None,
+            dependencies: None,
             bytes: bytes.len() as u64,
             sha256: format!("{:x}", Sha256::digest(&bytes)),
             prepare: prepare.contains(&relative),
@@ -84,17 +89,22 @@ pub fn inspect_build(
     }) {
         return Err(Error::Manifest("prepare path missing from build".into()));
     }
-    let r = Release {
-        schema_version: 1,
+    let release = Release {
+        schema_version: SchemaVersion::V2,
         app_id: app_id.into(),
         release: release_id.into(),
         runtime,
+        framework: None,
+        toolchain: None,
         entrypoint: entry.ok_or_else(|| Error::Manifest("entrypoint absent from build".into()))?,
+        requires_cross_origin_isolation: None,
         assets,
+        prepare_budget: None,
+        activation: None,
         extensions: BTreeMap::new(),
     };
     parse_release(
-        serde_json::to_value(r).map_err(|e| Error::Manifest(e.to_string()))?,
+        serde_json::to_value(release).map_err(|e| Error::Manifest(e.to_string()))?,
         &Policy::new(vec![base.origin().ascii_serialization()]),
     )
 }
