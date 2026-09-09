@@ -20,6 +20,9 @@ fn admitted_dioxus_fixture_preserves_v2_dependency_edges() {
         .and_then(|routes| routes.get("/app/reports"))
         .expect("fixture reports route");
     let closure = dependency_closure(&release, reports).expect("reports closure");
-    assert!(closure.len() >= 2, "fixture must exercise at least one dependency edge");
+    assert!(
+        closure.len() >= 2,
+        "fixture must exercise at least one dependency edge"
+    );
     assert_eq!(closure.last().expect("route target").id, *reports);
 }
