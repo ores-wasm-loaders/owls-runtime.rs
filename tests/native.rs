@@ -108,7 +108,10 @@ fn v2_dependency_graph_is_preserved_and_traversed_dependency_first() {
     let main = b"main--v2".to_vec();
     let release = parse_release(dependency_manifest(&shared, &main), &policy()).unwrap();
     assert_eq!(release.schema_version, SchemaVersion::V2);
-    assert_eq!(release.assets[1].dependencies.as_deref(), Some(["shared".to_string()].as_slice()));
+    assert_eq!(
+        release.assets[1].dependencies.as_deref(),
+        Some(["shared".to_string()].as_slice())
+    );
     assert_eq!(
         dependency_closure(&release, "main")
             .unwrap()
@@ -133,10 +136,16 @@ fn v2_dependency_graph_is_preserved_and_traversed_dependency_first() {
     )
     .unwrap();
     let cancel = AtomicBool::new(false);
-    assert_eq!(host.prefetch_asset("main", &cancel).unwrap(), vec!["shared", "main"]);
+    assert_eq!(
+        host.prefetch_asset("main", &cancel).unwrap(),
+        vec!["shared", "main"]
+    );
     assert_eq!(*order.lock().unwrap(), vec!["shared", "main"]);
     // The same explicit intent reuses verified cached bytes rather than refetching either edge.
-    assert_eq!(host.prefetch_asset("main", &cancel).unwrap(), vec!["shared", "main"]);
+    assert_eq!(
+        host.prefetch_asset("main", &cancel).unwrap(),
+        vec!["shared", "main"]
+    );
     assert_eq!(*order.lock().unwrap(), vec!["shared", "main"]);
 }
 
@@ -147,19 +156,27 @@ fn invalid_dependency_graphs_fail_closed() {
 
     let mut missing = dependency_manifest(shared, main);
     missing["assets"][1]["dependencies"] = json!(["missing"]);
-    assert!(matches!(parse_release(missing, &policy()), Err(Error::Manifest(message)) if message.contains("missing asset")));
+    assert!(
+        matches!(parse_release(missing, &policy()), Err(Error::Manifest(message)) if message.contains("missing asset"))
+    );
 
     let mut self_edge = dependency_manifest(shared, main);
     self_edge["assets"][1]["dependencies"] = json!(["main"]);
-    assert!(matches!(parse_release(self_edge, &policy()), Err(Error::Manifest(message)) if message.contains("cannot depend on itself")));
+    assert!(
+        matches!(parse_release(self_edge, &policy()), Err(Error::Manifest(message)) if message.contains("cannot depend on itself"))
+    );
 
     let mut duplicate = dependency_manifest(shared, main);
     duplicate["assets"][1]["dependencies"] = json!(["shared", "shared"]);
-    assert!(matches!(parse_release(duplicate, &policy()), Err(Error::Manifest(message)) if message.contains("repeats dependency")));
+    assert!(
+        matches!(parse_release(duplicate, &policy()), Err(Error::Manifest(message)) if message.contains("repeats dependency"))
+    );
 
     let mut cycle = dependency_manifest(shared, main);
     cycle["assets"][0]["dependencies"] = json!(["main"]);
-    assert!(matches!(parse_release(cycle, &policy()), Err(Error::Manifest(message)) if message.contains("dependency cycle")));
+    assert!(
+        matches!(parse_release(cycle, &policy()), Err(Error::Manifest(message)) if message.contains("dependency cycle"))
+    );
 }
 
 #[test]
@@ -182,9 +199,15 @@ fn explicit_dependency_prefetch_obeys_budget_and_cancellation() {
         MemoryStore::new(65536),
     )
     .unwrap();
-    assert!(matches!(host.prefetch_asset("main", &AtomicBool::new(false)), Err(Error::Budget)));
+    assert!(matches!(
+        host.prefetch_asset("main", &AtomicBool::new(false)),
+        Err(Error::Budget)
+    ));
     assert!(order.lock().unwrap().is_empty());
-    assert!(matches!(host.prefetch_asset("main", &AtomicBool::new(true)), Err(Error::Budget) | Err(Error::Cancelled)));
+    assert!(matches!(
+        host.prefetch_asset("main", &AtomicBool::new(true)),
+        Err(Error::Budget) | Err(Error::Cancelled)
+    ));
     assert!(order.lock().unwrap().is_empty());
 }
 
