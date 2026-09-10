@@ -82,7 +82,17 @@ jobs:
           tool_root="$RUNNER_TEMP/ores-cli-tool"
           mkdir -p "$tool_root"
           cd "$tool_root"
-          "$ZED" install "oresoftware/ores-cli@${ORES_CLI_VERSION}" --allow-build --adapter none
+          installed=false
+          for attempt in 1 2 3; do
+            if "$ZED" install "oresoftware/ores-cli@${ORES_CLI_VERSION}" --allow-build --adapter none; then
+              installed=true
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 5))
+            fi
+          done
+          test "$installed" = true
           "$ZED" run oresc -- --no-json doctor
           "$ZED" run oresc -- --no-json audit repo \
             --path "$GITHUB_WORKSPACE" \
