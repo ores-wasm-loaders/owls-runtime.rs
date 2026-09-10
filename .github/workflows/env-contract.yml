@@ -55,9 +55,10 @@ jobs:
             --sops-all \
             --dec-all
 
-      - name: Re-run native package gates after governance checks
+      - name: Reject repository hygiene drift
         shell: bash
         run: |
           set -euo pipefail
-          cargo test --locked
-          cargo clippy --locked --all-targets -- -D warnings
+          git diff --check
+          test -s .cli-flags.toml
+          test -s manifest.env
