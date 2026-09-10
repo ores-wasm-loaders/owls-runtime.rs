@@ -1,0 +1,86 @@
+name: env-contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  F2E_VERSION: '0.3.0'
+  ORES_CLI_VERSION: '0.1.0'
+  ZED_VERSION: '0.3.0'
+
+jobs:
+  env-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Install canonical flags-2-env client
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global "@oresoftware/f2e@${F2E_VERSION}" --no-audit --no-fund
+          flags2env audit .cli-flags.toml
+
+      - name: Verify env inventory, CLI coverage, and SOPS/decrypted key sets
+        shell: bash
+        run: |
+          set -euo pipefail
+          flags2env env-manifest check . \
+            --manifest manifest.env \
+            --cli .cli-flags.toml \
+            --sops-all \
+            --dec-all
+
+      - name: Install checksum-pinned Zed
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/zed.tgz"
+          directory="$RUNNER_TEMP/zed-tool"
+          mkdir -p "$directory"
+          curl --fail --location --silent --show-error --retry 3 \
+            "https://github.com/zed-pkg/zed-cli/releases/download/v${ZED_VERSION}/zed-x86_64-unknown-linux-musl.tar.gz" \
+            --output "$archive"
+          printf '%s  %s\n' e380240c96242ab3b29e0e9d14c95ba946d086f20f0732e34d0e5cf47513efc7 "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$directory"
+          ZED="$(find "$directory" -type f -name zed -print -quit)"
+          test -n "$ZED"
+          chmod +x "$ZED"
+          echo "ZED=$ZED" >> "$GITHUB_ENV"
+
+      - name: Install and run canonical ores-cli audit in isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.95.0 --profile minimal
+          tool_root="$RUNNER_TEMP/ores-cli-tool"
+          mkdir -p "$tool_root"
+          cd "$tool_root"
+          "$ZED" install "oresoftware/ores-cli@${ORES_CLI_VERSION}" --allow-build --adapter none
+          "$ZED" run oresc -- --no-json doctor
+          "$ZED" run oresc -- --no-json audit repo \
+            --path "$GITHUB_WORKSPACE" \
+            --profile baseline \
+            --required-paths '.cli-flags.toml,manifest.env'
+
+      - name: Re-run native package gates after governance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
