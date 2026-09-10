@@ -1,0 +1,64 @@
+name: env-contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  F2E_REF: 333c2ace93c362d274171ab0e0edf613d96a8e59
+
+jobs:
+  env-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Check out exact canonical flags-2-env source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: flags-2-env/flags-2-env
+          ref: ${{ env.F2E_REF }}
+          path: .tools/flags-2-env
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Build and verify canonical flags-2-env source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${#F2E_REF}" -eq 40
+          case "$F2E_REF" in *[!0-9a-f]*) exit 1 ;; esac
+          test "$(git -C .tools/flags-2-env rev-parse HEAD)" = "$F2E_REF"
+          npm ci --prefix .tools/flags-2-env --no-audit --no-fund
+          node .tools/flags-2-env/clients/nodejs/cli.mjs audit .cli-flags.toml
+
+      - name: Verify env inventory, CLI coverage, and SOPS/decrypted key sets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .tools/flags-2-env/clients/nodejs/cli.mjs env-manifest check . \
+            --manifest manifest.env \
+            --cli .cli-flags.toml \
+            --sops-all \
+            --dec-all
+
+      - name: Reject repository hygiene drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test -s .cli-flags.toml
+          test -s manifest.env
