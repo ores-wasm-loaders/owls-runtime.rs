@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OWLS_INTERFACES_REF: cfe0b18fe9ae361d94ea0646627cb732465b5496
-  TSJSV_REF: 03ccc0ecdfc70f9198c3ccf80718910961d3fde1
+  OWLS_INTERFACES_REF: ff6d5ba6ea8da130854eb511994eb0547ff44988
+  TSJSV_REF: 8bf7ebda4e35c0d11b5b5e5f865867bee4fc3085
 
 jobs:
   contract-admission:
@@ -82,7 +82,7 @@ jobs:
             --max-probes=96 \
             --quiet
       - name: Canonically verify current peer authorities and complete native consumer scope
-        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@03ccc0ecdfc70f9198c3ccf80718910961d3fde1
+        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@8bf7ebda4e35c0d11b5b5e5f865867bee4fc3085
         with:
           contract_ir: subject/owls-interfaces/.typespec-json-schema-validator/contract-ir.json
           report: subject/owls-interfaces/.typespec-json-schema-validator/report.json

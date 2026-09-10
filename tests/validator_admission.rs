@@ -27,6 +27,9 @@ const EXPECTED_DECLARATIONS: &[&str] = &[
     "Ores.WasmLoaders.ToolchainId",
 ];
 
+const EXPECTED_OWLS_INTERFACES_REF: &str = "ff6d5ba6ea8da130854eb511994eb0547ff44988";
+const EXPECTED_TJSV_REF: &str = "8bf7ebda4e35c0d11b5b5e5f865867bee4fc3085";
+
 fn workflow() -> String {
     fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR")).join(".github/workflows/native-contract.yml"),
@@ -59,12 +62,12 @@ fn native_loader_admits_the_same_exact_contract_in_both_jobs() {
     let validator = exact_ref(&source, "TSJSV_REF");
 
     assert_eq!(
-        interfaces, "cfe0b18fe9ae361d94ea0646627cb732465b5496",
-        "native admission must use the dependency-DAG interface revision",
+        interfaces, EXPECTED_OWLS_INTERFACES_REF,
+        "native admission must use the reviewed interface revision",
     );
     assert_ne!(interfaces, validator);
     assert_eq!(
-        validator, "03ccc0ecdfc70f9198c3ccf80718910961d3fde1",
+        validator, EXPECTED_TJSV_REF,
         "native admission must use the reviewed current TJSV revision",
     );
     assert!(source.contains("repository: ORESoftware/typespec-json-schema-validator"));
@@ -77,9 +80,9 @@ fn native_loader_admits_the_same_exact_contract_in_both_jobs() {
     assert!(source.contains("fixtures/valid/*.json"));
     assert!(source.contains("instances/Release/valid"));
     assert!(source.contains("--contract-ir=.typespec-json-schema-validator/contract-ir.json"));
-    assert!(source.contains(
-        "ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@03ccc0ecdfc70f9198c3ccf80718910961d3fde1"
-    ));
+    assert!(source.contains(&format!(
+        "ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@{EXPECTED_TJSV_REF}"
+    )));
     assert!(source.contains("tjsv-consumer-verification.json"));
     assert!(source.contains("node scripts/verify-contract-ir.mjs"));
     assert!(source.contains("node scripts/check-language-projections.mjs"));
