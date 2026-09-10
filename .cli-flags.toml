@@ -1,0 +1,19 @@
+# Repository-level CLI/env contract for governance tooling.
+# owls-runtime.rs is a library package and exposes no user-facing argv surface;
+# keep dotenv loading disabled rather than inventing ambient runtime variables.
+
+[help]
+url = "https://github.com/ores-wasm-loaders/owls-runtime.rs"
+columns = ["options", "env", "type", "default", "description"]
+
+[env]
+files = []
+
+[parse]
+unknown_options_env = "OWLS_RUNTIME_UNKNOWN_OPTIONS"
+errors_env = "OWLS_RUNTIME_PARSE_ERRORS"
+allow_unknown = false
+
+# BEGIN flags2env env-manifest v1
+# schema=ores.env-manifest.v1 sha256=fdab1ef9d104d75ff7a406ddc5487a6595779b7ec0674b925f336cbac14afae7
+# END flags2env env-manifest v1
