@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  F2E_VERSION: '0.3.0'
+  F2E_REF: 333c2ace93c362d274171ab0e0edf613d96a8e59
   ORES_CLI_VERSION: '0.1.0'
   ZED_VERSION: '0.3.0'
 
@@ -24,23 +24,34 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check out exact canonical flags-2-env source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: flags-2-env/flags-2-env
+          ref: ${{ env.F2E_REF }}
+          path: .tools/flags-2-env
+          persist-credentials: false
+
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
 
-      - name: Install canonical flags-2-env client
+      - name: Build and verify canonical flags-2-env source
         shell: bash
         run: |
           set -euo pipefail
-          npm install --global "@oresoftware/f2e@${F2E_VERSION}" --no-audit --no-fund
-          flags2env audit .cli-flags.toml
+          test "${#F2E_REF}" -eq 40
+          case "$F2E_REF" in *[!0-9a-f]*) exit 1 ;; esac
+          test "$(git -C .tools/flags-2-env rev-parse HEAD)" = "$F2E_REF"
+          npm ci --prefix .tools/flags-2-env --no-audit --no-fund
+          node .tools/flags-2-env/clients/nodejs/cli.mjs audit .cli-flags.toml
 
       - name: Verify env inventory, CLI coverage, and SOPS/decrypted key sets
         shell: bash
         run: |
           set -euo pipefail
-          flags2env env-manifest check . \
+          node .tools/flags-2-env/clients/nodejs/cli.mjs env-manifest check . \
             --manifest manifest.env \
             --cli .cli-flags.toml \
             --sops-all \
