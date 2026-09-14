@@ -9,4 +9,49 @@ size = 5659
 format = "tar.gz"
 vcs_tag = "v0.1.1"
 vcs_commit = "291406191b55606e34b7980b42112e9c77ab690b"
-source = "file:///tmp/ores-wasm-registry"
+source = "https://registry.zpkg.net"
+
+[[package.mirrors]]
+kind = "github-release"
+url = "https://github.com/ores-wasm-loaders/owls-interfaces/releases/download/v0.1.1/zpkg-ores-wasm-loaders-owls-interfaces-0.1.1.tar.gz"
+
+[package.mirrors.serves]
+artifacts = true
+metadata = true
+index = true
+
+[[package.mirrors]]
+kind = "github-release"
+url = "https://github.com/ores-wasm-loaders/owls-interfaces/releases/download/v0.1.1/zpkg-owls-interfaces-0.1.1.tar.gz"
+
+[package.mirrors.serves]
+artifacts = true
+metadata = true
+index = true
+
+[[package.mirrors]]
+kind = "github-raw"
+url = "https://ghcr.io/v2/ores-wasm-loaders/owls-interfaces/manifests/v0.1.1"
+
+[package.mirrors.serves]
+artifacts = true
+metadata = true
+index = true
+
+[[package.mirrors]]
+kind = "github-raw"
+url = "https://github.com/ores-wasm-loaders/owls-interfaces/archive/refs/tags/v0.1.1.tar.gz"
+
+[package.mirrors.serves]
+artifacts = true
+metadata = true
+index = true
+
+[[package.mirrors]]
+kind = "object-store"
+url = "http://127.0.0.1:1"
+
+[package.mirrors.serves]
+artifacts = true
+metadata = true
+index = true
