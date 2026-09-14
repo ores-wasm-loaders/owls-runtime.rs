@@ -49,7 +49,7 @@ index = true
 
 [[package.mirrors]]
 kind = "object-store"
-url = "http://127.0.0.1:1"
+url = "https://cdn.zpkg.net"
 
 [package.mirrors.serves]
 artifacts = true
