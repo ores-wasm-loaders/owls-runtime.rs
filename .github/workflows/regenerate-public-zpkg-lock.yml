@@ -20,7 +20,6 @@ env:
   EXPECTED_COMMIT: 291406191b55606e34b7980b42112e9c77ab690b
   EXPECTED_TAG: v0.1.1
   ZED_PKG_SOURCE_FALLBACK: 'true'
-  ZED_PKG_R2_PUBLIC_BASE: http://127.0.0.1:1
 
 jobs:
   regenerate-and-certify:
@@ -58,12 +57,12 @@ jobs:
           test "$(git rev-parse HEAD)" = "$ZED_CLI_SHA"
           cargo build --locked --release --bin zed
 
-      - name: Regenerate lock without ambient file registry
+      - name: Regenerate lock without ambient local or canary mirrors
         shell: bash
         run: |
           set -Eeuo pipefail
           ZED="$GITHUB_WORKSPACE/product/zed-cli/target/release/zed"
-          unset GITHUB_TOKEN GH_TOKEN ZED_PKG_GITHUB_TOKEN || true
+          unset GITHUB_TOKEN GH_TOKEN ZED_PKG_GITHUB_TOKEN ZED_PKG_R2_PUBLIC_BASE ZED_PKG_R2_PUBLIC_KEY || true
           rm -rf .zpkg.lock zed_modules "$RUNNER_TEMP/zed-home-regenerate"
           "$ZED" --registry "$CANONICAL_REGISTRY" --home "$RUNNER_TEMP/zed-home-regenerate" install \
             --install-mode copy --adapter none --allow-ecosystem-mismatch \
@@ -71,6 +70,7 @@ jobs:
 
           test -s .zpkg.lock
           ! grep -Fq 'file://' .zpkg.lock
+          ! grep -Eq '127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\]' .zpkg.lock
           grep -Fq "sha256 = \"$EXPECTED_SHA256\"" .zpkg.lock
           grep -Fq "vcs_tag = \"$EXPECTED_TAG\"" .zpkg.lock
           grep -Fq "vcs_commit = \"$EXPECTED_COMMIT\"" .zpkg.lock
@@ -82,7 +82,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           ZED="$GITHUB_WORKSPACE/product/zed-cli/target/release/zed"
-          unset GITHUB_TOKEN GH_TOKEN ZED_PKG_GITHUB_TOKEN || true
+          unset GITHUB_TOKEN GH_TOKEN ZED_PKG_GITHUB_TOKEN ZED_PKG_R2_PUBLIC_BASE ZED_PKG_R2_PUBLIC_KEY || true
           cp .zpkg.lock "$RUNNER_TEMP/regenerated.lock"
           rm -rf zed_modules "$RUNNER_TEMP/zed-home-frozen"
           "$ZED" --registry "$DEAD_REGISTRY" --home "$RUNNER_TEMP/zed-home-frozen" install --frozen \
