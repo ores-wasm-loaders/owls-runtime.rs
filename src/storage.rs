@@ -179,7 +179,10 @@ mod file_cache_security_tests {
         let mut store = FileStore::new(directory.clone(), 4).expect("cache");
         let key = "a".repeat(64);
         store.put(&key, b"safe").expect("bounded write");
-        assert_eq!(store.get(&key).expect("bounded read"), Some(b"safe".to_vec()));
+        assert_eq!(
+            store.get(&key).expect("bounded read"),
+            Some(b"safe".to_vec())
+        );
         assert_eq!(store.get(&"b".repeat(64)).expect("missing read"), None);
 
         std::fs::write(directory.join(&key), b"oversized").expect("test mutation");
@@ -198,7 +201,13 @@ mod file_cache_security_tests {
         let key = "c".repeat(64);
         std::os::unix::fs::symlink(&target, directory.join(&key))
             .expect("create malicious leaf symlink");
-        assert!(matches!(store.get(&key), Err(Error::Io(_)) | Err(Error::Budget)));
-        assert_eq!(std::fs::read(target).expect("outside data"), b"do-not-follow");
+        assert!(matches!(
+            store.get(&key),
+            Err(Error::Io(_)) | Err(Error::Budget)
+        ));
+        assert_eq!(
+            std::fs::read(target).expect("outside data"),
+            b"do-not-follow"
+        );
     }
 }
