@@ -1,5 +1,41 @@
 use crate::{Error, Result};
-use std::{collections::BTreeMap, io::Write, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fs::{File, OpenOptions},
+    io::{Read, Write},
+    path::{Path, PathBuf},
+};
+
+// Open the leaf through a non-following handle. A symlink_metadata/path-read
+// sequence has a TOCTOU window where a cache entry can be swapped for a link.
+#[cfg(unix)]
+fn open_cache_leaf(path: &Path) -> std::io::Result<File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)
+}
+
+#[cfg(windows)]
+fn open_cache_leaf(path: &Path) -> std::io::Result<File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    // FILE_FLAG_OPEN_REPARSE_POINT: open a leaf reparse point, not its target.
+    // The subsequent handle metadata must be a regular file.
+    const OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(OPEN_REPARSE_POINT)
+        .open(path)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn open_cache_leaf(_path: &Path) -> std::io::Result<File> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "secure cache file opening is not supported on this platform",
+    ))
+}
 pub trait ByteStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>>;
     fn put(&mut self, key: &str, bytes: &[u8]) -> Result<()>;
@@ -64,12 +100,24 @@ impl FileStore {
 impl ByteStore for FileStore {
     fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         let path = self.path(key)?;
-        match std::fs::symlink_metadata(&path) {
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.into()),
-            Ok(meta) if !meta.is_file() || meta.len() > self.max_entry_bytes => Err(Error::Budget),
-            Ok(_) => Ok(Some(std::fs::read(path)?)),
+        let file = match open_cache_leaf(&path) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+            Ok(file) => file,
+        };
+        // Inspect the opened handle, not the pathname: path checks can race a
+        // replacement. Bound reads even if another actor grows the file later.
+        let metadata = file.metadata()?;
+        if !metadata.is_file() || metadata.len() > self.max_entry_bytes {
+            return Err(Error::Budget);
         }
+        let mut bytes = Vec::new();
+        file.take(self.max_entry_bytes.saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > self.max_entry_bytes {
+            return Err(Error::Budget);
+        }
+        Ok(Some(bytes))
     }
     fn put(&mut self, key: &str, bytes: &[u8]) -> Result<()> {
         if bytes.len() as u64 > self.max_entry_bytes {
