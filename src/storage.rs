@@ -102,7 +102,9 @@ mod bounded_memory_store_tests {
         cache.put("d", b"rst").expect("cache write");
         assert_eq!(cache.get("c").expect("cache read"), Some(b"xy".to_vec()));
         assert_eq!(cache.get("d").expect("cache read"), Some(b"rst".to_vec()));
-        cache.put("huge", b"123456").expect("oversized is uncacheable");
+        cache
+            .put("huge", b"123456")
+            .expect("oversized is uncacheable");
         assert_eq!(cache.get("huge").expect("cache read"), None);
         assert_eq!(cache.get("c").expect("cache read"), Some(b"xy".to_vec()));
     }
