@@ -168,3 +168,99 @@ mod bounded_prepare_tests {
         assert!(within_prepare_budget([&second].into_iter(), &per_asset));
     }
 }
+
+#[cfg(test)]
+mod cache_cancellation_tests {
+    use super::Host;
+    use crate::{
+        Asset, AssetKind, ByteStore, Error, Policy, Release, Result, Runtime, SchemaVersion,
+        Transport,
+    };
+    use sha2::{Digest, Sha256};
+    use std::collections::BTreeMap;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+
+    struct CancellingCache {
+        cancelled: Arc<AtomicBool>,
+        cached: Option<Vec<u8>>,
+    }
+    impl ByteStore for CancellingCache {
+        fn get(&self, _key: &str) -> Result<Option<Vec<u8>>> {
+            self.cancelled.store(true, Ordering::SeqCst);
+            Ok(self.cached.clone())
+        }
+        fn put(&mut self, _key: &str, _bytes: &[u8]) -> Result<()> {
+            panic!("a cancelled fetch must not populate the cache");
+        }
+    }
+
+    struct NoNetwork;
+    impl Transport for NoNetwork {
+        fn fetch(&self, _asset: &Asset, _cancelled: &AtomicBool) -> Result<Vec<u8>> {
+            panic!("a cancelled cache read must never start network I/O");
+        }
+    }
+
+    fn host(cancelled: Arc<AtomicBool>, cached: Option<Vec<u8>>) -> Host<NoNetwork, CancellingCache> {
+        let bytes = b"safe".to_vec();
+        let digest = format!("{:x}", Sha256::digest(&bytes));
+        Host {
+            release: Release {
+                schema_version: SchemaVersion::V2,
+                app_id: "synthetic-app".into(),
+                release: "synthetic-release".into(),
+                runtime: Runtime::RawWasm,
+                framework: None,
+                toolchain: None,
+                entrypoint: "cached".into(),
+                requires_cross_origin_isolation: None,
+                assets: vec![Asset {
+                    id: "cached".into(),
+                    url: "https://assets.example/cached".into(),
+                    kind: AssetKind::Wasm,
+                    role: None,
+                    stage: None,
+                    dependencies: None,
+                    bytes: 4,
+                    sha256: digest,
+                    prepare: false,
+                }],
+                prepare_budget: None,
+                activation: None,
+                extensions: BTreeMap::new(),
+            },
+            policy: Policy::new(vec!["https://assets.example".into()]),
+            transport: NoNetwork,
+            store: CancellingCache { cancelled, cached },
+        }
+    }
+
+    #[test]
+    fn cancellation_during_verified_cache_hit_rejects_bytes() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut host = host(Arc::clone(&cancelled), Some(b"safe".to_vec()));
+        assert!(matches!(host.bytes("cached", &cancelled), Err(Error::Cancelled)));
+        assert!(cancelled.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn cancellation_during_cache_miss_prevents_network_fetch() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let mut host = host(Arc::clone(&cancelled), None);
+        assert!(matches!(host.bytes("cached", &cancelled), Err(Error::Cancelled)));
+    }
+
+    #[test]
+    fn already_cancelled_prefetch_is_denied_even_without_prepared_assets() {
+        let cancelled = Arc::new(AtomicBool::new(true));
+        let mut host = host(Arc::clone(&cancelled), None);
+        assert!(matches!(host.prefetch(&cancelled), Err(Error::Cancelled)));
+        assert!(matches!(
+            host.prefetch_asset("cached", &cancelled),
+            Err(Error::Cancelled)
+        ));
+    }
+}
