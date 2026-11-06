@@ -204,7 +204,10 @@ mod cache_cancellation_tests {
         }
     }
 
-    fn host(cancelled: Arc<AtomicBool>, cached: Option<Vec<u8>>) -> Host<NoNetwork, CancellingCache> {
+    fn host(
+        cancelled: Arc<AtomicBool>,
+        cached: Option<Vec<u8>>,
+    ) -> Host<NoNetwork, CancellingCache> {
         let bytes = b"safe".to_vec();
         let digest = format!("{:x}", Sha256::digest(&bytes));
         Host {
@@ -242,7 +245,10 @@ mod cache_cancellation_tests {
     fn cancellation_during_verified_cache_hit_rejects_bytes() {
         let cancelled = Arc::new(AtomicBool::new(false));
         let mut host = host(Arc::clone(&cancelled), Some(b"safe".to_vec()));
-        assert!(matches!(host.bytes("cached", &cancelled), Err(Error::Cancelled)));
+        assert!(matches!(
+            host.bytes("cached", &cancelled),
+            Err(Error::Cancelled)
+        ));
         assert!(cancelled.load(Ordering::SeqCst));
     }
 
@@ -250,7 +256,10 @@ mod cache_cancellation_tests {
     fn cancellation_during_cache_miss_prevents_network_fetch() {
         let cancelled = Arc::new(AtomicBool::new(false));
         let mut host = host(Arc::clone(&cancelled), None);
-        assert!(matches!(host.bytes("cached", &cancelled), Err(Error::Cancelled)));
+        assert!(matches!(
+            host.bytes("cached", &cancelled),
+            Err(Error::Cancelled)
+        ));
     }
 
     #[test]
