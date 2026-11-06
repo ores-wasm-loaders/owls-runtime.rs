@@ -190,3 +190,39 @@ jobs:
 
       - name: Run native contract and package-receipt tests
         run: cargo +1.94.0 test --locked --all-features
+
+  rust-cache-portability:
+    name: Secure cache (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    steps:
+      - name: Check out exact runtime source without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Check out exact interface authority
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ores-wasm-loaders/owls-interfaces
+          ref: ${{ env.OWLS_INTERFACES_REF }}
+          path: zed_modules/ores-wasm-loaders/owls-interfaces
+          persist-credentials: false
+      - name: Verify exact Git tree and pinned Rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git -C zed_modules/ores-wasm-loaders/owls-interfaces rev-parse HEAD)" = "$OWLS_INTERFACES_REF"
+          rustup toolchain install 1.94.0 --profile minimal
+      - name: Execute no-follow on-disk cache tests
+        run: cargo +1.94.0 test --locked --lib storage::file_cache_security_tests -- --nocapture
+      - name: Execute bounded in-memory cache tests
+        run: cargo +1.94.0 test --locked --lib storage::bounded_memory_store_tests -- --nocapture
+      - name: Execute cancellation interleaving tests
+        run: cargo +1.94.0 test --locked --lib host::cache_cancellation_tests -- --nocapture
+      - name: Evidence classification
+        run: echo "ATTO_COMPILER_GUEST=NOT_EXECUTED"
