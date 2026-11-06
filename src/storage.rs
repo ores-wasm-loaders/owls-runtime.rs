@@ -21,11 +21,13 @@ impl ByteStore for MemoryStore {
         Ok(self.bytes.get(key).cloned())
     }
     fn put(&mut self, key: &str, bytes: &[u8]) -> Result<()> {
-        if bytes.len() > self.limit {
+        // Subtract before comparing: occupied + incoming could overflow usize
+        // at the largest caller-configured cache limits.
+        let Some(remaining_capacity) = self.limit.checked_sub(bytes.len()) else {
             return Ok(());
-        }
+        };
         self.bytes.remove(key);
-        while self.bytes.values().map(Vec::len).sum::<usize>() + bytes.len() > self.limit {
+        while self.bytes.values().map(Vec::len).sum::<usize>() > remaining_capacity {
             self.bytes.pop_first();
         }
         self.bytes.insert(key.into(), bytes.to_vec());
