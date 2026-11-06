@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 // Unchecked sum::<u64>() can panic in debug and wrap in release, letting an
 // attacker-controlled manifest bypass a preparation budget.
 fn within_prepare_budget<'a>(
-    assets: impl Iterator<Item = &'a crate::Asset>,
+    mut assets: impl Iterator<Item = &'a crate::Asset>,
     policy: &Policy,
 ) -> bool {
     assets
