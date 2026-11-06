@@ -166,3 +166,39 @@ mod bounded_memory_store_tests {
         assert_eq!(cache.get("two").expect("cache read"), Some(b"yz".to_vec()));
     }
 }
+
+#[cfg(test)]
+mod file_cache_security_tests {
+    use super::{ByteStore, FileStore};
+    use crate::Error;
+
+    #[test]
+    fn reads_only_bounded_regular_digest_files() {
+        let root = tempfile::tempdir().expect("temporary test directory");
+        let directory = root.path().join("private-cache");
+        let mut store = FileStore::new(directory.clone(), 4).expect("cache");
+        let key = "a".repeat(64);
+        store.put(&key, b"safe").expect("bounded write");
+        assert_eq!(store.get(&key).expect("bounded read"), Some(b"safe".to_vec()));
+        assert_eq!(store.get(&"b".repeat(64)).expect("missing read"), None);
+
+        std::fs::write(directory.join(&key), b"oversized").expect("test mutation");
+        assert!(matches!(store.get(&key), Err(Error::Budget)));
+        assert!(matches!(store.get("../escape"), Err(Error::Integrity)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refuses_leaf_symlink_even_when_target_is_small_and_readable() {
+        let root = tempfile::tempdir().expect("temporary test directory");
+        let directory = root.path().join("private-cache");
+        let store = FileStore::new(directory.clone(), 1024).expect("cache");
+        let target = root.path().join("outside-secret");
+        std::fs::write(&target, b"do-not-follow").expect("write outside data");
+        let key = "c".repeat(64);
+        std::os::unix::fs::symlink(&target, directory.join(&key))
+            .expect("create malicious leaf symlink");
+        assert!(matches!(store.get(&key), Err(Error::Io(_)) | Err(Error::Budget)));
+        assert_eq!(std::fs::read(target).expect("outside data"), b"do-not-follow");
+    }
+}
