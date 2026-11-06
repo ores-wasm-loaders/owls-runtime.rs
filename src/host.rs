@@ -52,7 +52,14 @@ impl<T: Transport, S: ByteStore> Host<T, S> {
         if asset.bytes > self.policy.max_asset_bytes {
             return Err(Error::Budget);
         }
-        if let Ok(Some(bytes)) = self.store.get(&asset.sha256)
+        // The store is allowed to perform I/O. Cancellation can arrive while
+        // it reads, including when an integrity-valid cache hit would otherwise
+        // return immediately or a miss would start a network fetch.
+        let cached = self.store.get(&asset.sha256);
+        if cancelled.load(Ordering::Acquire) {
+            return Err(Error::Cancelled);
+        }
+        if let Ok(Some(bytes)) = cached
             && verify(asset, &bytes).is_ok()
         {
             return Ok(bytes);
@@ -63,11 +70,17 @@ impl<T: Transport, S: ByteStore> Host<T, S> {
         }
         verify(asset, &bytes)?;
         let _ = self.store.put(&asset.sha256, &bytes);
+        if cancelled.load(Ordering::Acquire) {
+            return Err(Error::Cancelled);
+        }
         Ok(bytes)
     }
 
     /// Ambient preparation remains controlled by each asset's `prepare` bit.
     pub fn prefetch(&mut self, cancelled: &AtomicBool) -> Result<()> {
+        if cancelled.load(Ordering::Acquire) {
+            return Err(Error::Cancelled);
+        }
         let assets: Vec<_> = self
             .release
             .assets
@@ -88,6 +101,9 @@ impl<T: Transport, S: ByteStore> Host<T, S> {
     /// `prepare:false` dependencies may participate here because the caller named the root;
     /// this does not turn them into ambient speculative work.
     pub fn prefetch_asset(&mut self, id: &str, cancelled: &AtomicBool) -> Result<Vec<String>> {
+        if cancelled.load(Ordering::Acquire) {
+            return Err(Error::Cancelled);
+        }
         let closure = dependency_closure(&self.release, id)?;
         if !within_prepare_budget(closure.iter().copied(), &self.policy) {
             return Err(Error::Budget);
