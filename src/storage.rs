@@ -83,3 +83,36 @@ impl ByteStore for FileStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod bounded_memory_store_tests {
+    use super::{ByteStore, MemoryStore};
+
+    #[test]
+    fn cache_eviction_never_exceeds_capacity_or_returns_old_keys() {
+        let mut cache = MemoryStore::new(5);
+        cache.put("a", b"123").expect("cache write");
+        cache.put("b", b"45").expect("cache write");
+        cache.put("c", b"6789").expect("cache write");
+        assert_eq!(cache.get("a").expect("cache read"), None);
+        assert_eq!(cache.get("b").expect("cache read"), None);
+        assert_eq!(cache.get("c").expect("cache read"), Some(b"6789".to_vec()));
+
+        cache.put("c", b"xy").expect("overwrite");
+        cache.put("d", b"rst").expect("cache write");
+        assert_eq!(cache.get("c").expect("cache read"), Some(b"xy".to_vec()));
+        assert_eq!(cache.get("d").expect("cache read"), Some(b"rst".to_vec()));
+        cache.put("huge", b"123456").expect("oversized is uncacheable");
+        assert_eq!(cache.get("huge").expect("cache read"), None);
+        assert_eq!(cache.get("c").expect("cache read"), Some(b"xy".to_vec()));
+    }
+
+    #[test]
+    fn maximum_usize_capacity_accepts_small_values_without_overflow() {
+        let mut cache = MemoryStore::new(usize::MAX);
+        cache.put("one", b"x").expect("cache write");
+        cache.put("two", b"yz").expect("cache write");
+        assert_eq!(cache.get("one").expect("cache read"), Some(b"x".to_vec()));
+        assert_eq!(cache.get("two").expect("cache read"), Some(b"yz".to_vec()));
+    }
+}
