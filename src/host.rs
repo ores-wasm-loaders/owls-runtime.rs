@@ -144,7 +144,10 @@ mod bounded_prepare_tests {
         };
         assert!(!within_prepare_budget([&first, &second].into_iter(), &base));
         assert!(within_prepare_budget([&first].into_iter(), &base));
-        let per_asset = Policy { max_asset_bytes: 7, ..base };
+        let per_asset = Policy {
+            max_asset_bytes: 7,
+            ..base
+        };
         assert!(!within_prepare_budget([&first].into_iter(), &per_asset));
         assert!(within_prepare_budget([&second].into_iter(), &per_asset));
     }
